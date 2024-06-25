@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon_io/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Test</title>
+</head>
+
+<body>
+  <main>
+    <div id="gameEndDiv" class="gameEndDiv">
+      <div class="gameEnd" id="gameEnd">
+        <img draggable="false" src="\assets\game-over.gif" class="gameOver">
+        <h1>You <span id="gameWinLoseSpan"></span></h1>
+        <h2 id="gameEndScoreSpan"></h2>
+        <h2 id="reward"></h2>
+        <button id="redirectBtn">Redirect in (<span id="redirectCount">3</span>)</button>
+      </div>
+    </div>
+    <div id="redirectDiv" class="gameUI">
+      <div class="download">
+      <div class="downloadBtnCtn">
+        <div class="downloadBorder"></div>
+        <div class="downloadBtn">Download Now</div>
+      </div>
+    </div>
+    <div class="downloadCtn">
+    <a href="" class="downloadButton">
+      <img src="\assets\googleplay_logo_icon.svg" alt="Google Play Logo" class="icon">
+      <div class="downloadTxt"><span class="downloadSpan">Download on the</span><h4>Google Play</h4></div>
+  </a>
+  <a href="" class="downloadButton">
+      <img src="\assets\apple_icon.svg" alt="Apple Store Logo" class="icon">
+      <div class="downloadTxt"><span class="downloadSpan">Download on the</span><h4>App Store</h4></div>
+  </a>
+</div>
+    </div>
+  </main>
+  </div>
+
+  <script type="module" src="gameOver.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,242 @@
+:root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  }
+  
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  html,
+  body {
+    height: 100%;
+  }
+  
+  body {
+    color: white;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  main {
+    flex: 1;
+    display: flex;
+  }
+  
+  .gameEndDiv {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: auto;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+  
+  .gameEndDiv *,
+  .gameUI * {
+    text-align: center;
+    margin-top: 5px;
+  }
+  
+  .gameEnd {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: auto;
+    background-color: rgba(128, 128, 128, 0.6);
+    padding: 2rem;
+    border-radius: 20px;
+  }
+  
+  .gameEnd h1 {
+    font-size: 2.5em;
+  }
+  
+  .gameEnd h21 {
+    font-size: 2em;
+  }
+  
+  .gameOver {
+    width: 300px;
+  }
+  
+  .gameUI {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    background-image: url('/assets/smartphone.png');
+    background-size: cover;
+    background-position: center;
+    margin: auto;
+    position: relative;
+  }
+  
+  #redirectBtn {
+    font-family: inherit;
+    font-size: 1.2em;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  
+  
+  #redirectDiv {
+    display: none;
+  }
+  .download{
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      
+    width: 80%;
+    max-width: 1000px;
+  }
+  .downloadBtnCtn {
+    display: grid;
+    grid-template-columns: auto;
+    text-decoration: none;
+    width: 100%;
+  }
+  
+  .downloadBtn {
+    background-color: #008CBA;
+    color: #ffffff;
+    font-size: 16px;
+    padding: 10px 20px 10px 20px;
+    text-align: center;
+    display: inline-block;
+    font-weight: bold;
+    border: 10px solid red;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px 0 red;
+    width: 100%;
+    animation: flash 1s infinite;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  
+  .downloadBorder {
+    border: 5px dotted yellow;
+    margin: 7px 3px 3px 3px;
+    border-radius: 5px;
+    animation: flashBorder 1s infinite;
+    grid-column: 1;
+    grid-row: 1;
+    z-index: 1;
+  }
+
+  .downloadButton {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #fff;
+    background-color: #4285f4;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.downloadButton .icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+}
+
+.downloadButton:hover {
+    background-color: #357ae8;
+}
+
+.downloadButton{
+    background-color: #000;
+}
+
+.downloadButton:hover {
+    background-color: #333; 
+}
+.downloadTxt {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: left;
+  justify-content: left;
+}
+.downloadTxt *{
+  margin: 0;
+}
+.downloadTxt h4{
+  font-size: 1.5em;
+}
+.downloadSpan {
+  font-size: 0.7em;
+  text-align: left;
+
+}
+  @keyframes flash {
+    0% {
+      background-color: #008CBA;
+      border: 10px solid red;
+      box-shadow: 0 4px 15px 0 red;
+    }
+  
+    50% {
+      background-color: #006699;
+      border: 10px solid rgb(197, 1, 1);
+      box-shadow: 0 4px 15px 0 rgb(197, 1, 1);
+    }
+  
+    100% {
+      background-color: #008CBA;
+      border: 10px solid red;
+      box-shadow: 0 4px 15px 0 red;
+    }
+  }
+  @keyframes flashBorder {
+    0% {
+      border: 5px dotted yellow;
+    }
+  
+    50% {
+      border: 5px dotted rgb(148, 148, 131);
+    }
+  
+    100% {
+      border: 5px dotted yellow;
+    }
+  }
+  
+  @media (max-width: 500px) {
+    .gameEnd {
+      padding: 1rem;
+    }
+    .gameEnd h1 {
+      font-size: 2.1em;
+    }
+    
+    .gameEnd h21 {
+      font-size: 1.7em;
+    }
+    #redirectBtn {
+      font-size: 0.9em;
+    }
+    .gameOver {
+      width: 200px;
+    }
+    .downloadTxt h4{
+      font-size: 1.2em;
+    }
+    .downloadSpan {
+      font-size: 0.6em;    
+    }
+}

@@ -1,0 +1,188 @@
+:root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    --dkClr: #181818;
+    --liClr: rgb(245, 245, 245);
+    --accClr: #0d0d35;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    color: var(--dkClr);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
+    display: flex;
+}
+.title{
+    width: 80%;
+}
+#userForm {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: auto;
+    background-color: rgba(255, 255, 255, 1);
+    padding: 2rem 1.5rem;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 10px;
+}
+
+#userForm input[type=text], #userForm input[type=tel] {
+    padding: 0.5rem;
+    font-size: 1rem;
+    margin: 0.5rem 0;
+    border-radius: 10px;
+    border: 1px solid grey;
+}
+
+#userForm button {
+    padding: 0.5rem;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background-color: forestgreen;
+    margin: 0.5rem 0;
+    color: var(--liClr);
+}
+
+#userForm button:hover:not([disabled])  {
+    background-color: green;
+}
+
+#userForm button:disabled {
+    opacity: 0.6;
+    background-color: gray;
+    cursor: not-allowed;
+}
+
+.home {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    background-image: url('/assets/bakery-shop.png');
+    background-size: cover;
+    background-position: center;
+    margin: auto;
+    position: relative;
+}
+
+.home * {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+.popup {
+    display: none;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(42, 42, 42, 0.5);
+}
+
+#gameStartBtn {
+    text-align: center;
+    font-family: inherit;
+    background-color: #04AA6D;
+    color: #ffffff;
+    font-size: 1rem;
+    padding: 1rem 2rem;
+    text-align: center;
+    display: inline-block;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px 0 #04AA6D;
+    width: 50%;
+    max-width: 500px;
+    cursor: pointer;
+    animation: flash 1s infinite;
+}
+
+#gameStartBtn p {
+    margin-top: 0;
+}
+
+#gameStartBtn:hover {
+    color: var(--liClr);
+    animation: none;
+    transform: scale(1.1);
+}
+
+
+@keyframes flash {
+    0% {
+        background-color: #04AA6D;
+    }
+
+    50% {
+        box-shadow: 0 4px 15px 0 #00774b;
+        background-color: #00774b;
+    }
+
+    100% {
+        background-color: #04AA6D;
+    }
+}
+
+.errMsgName,
+.errMsgTel {
+    color: red;
+    display: none;
+    font-size: 0.9rem;
+}
+.material-symbols-outlined {
+    font-size: 0.9rem;
+}
+.errorMsg {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.2rem;
+}
+
+@media (min-width: 500px) {
+    #userForm input[type=text], #userForm input[type=tel], #userForm button, #gameStartBtn{
+        font-size: 1.5rem;
+    }
+
+    .errMsgName,
+.errMsgTel, .material-symbols-outlined {
+        font-size: 1rem;
+    }
+    .title{
+        width: 60%;
+    }
+}
+
+@media (min-width: 800px) {
+    
+    .title{
+        width: 40%;
+    }
+}

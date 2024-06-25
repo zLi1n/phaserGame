@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Excel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="controlPanel.css">
+</head>
+
+<body>
+    <main>
+        <div id="submissionStatusDiv"></div>
+        <div>
+            <label>Date Time: </label><input type="datetime-local" id="startDateTime" placeholder="Start Date Time">
+            <label> to </label><input type="datetime-local" id="closeDateTime" placeholder="Close Date Time">
+            <button id="setSubmissionBtn">Set Times</button>
+        </div>
+
+        <hr />
+        <button id="downloadBtn">Download Excel</button>
+    </main>
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:3001/game/all-info');
+                const data = await response.json();
+                data.forEach(item => {
+                    if (item.PlayDate) {
+                        const date = new Date(item.PlayDate);
+                        item.PlayDate = date.toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: 'numeric',
+                            second: 'numeric',
+                            hour12: true
+                        });
+                    }
+                });
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+
+                XLSX.writeFile(workbook, 'report.xlsx');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+
+        document.getElementById('setSubmissionBtn').addEventListener('click', async () => {
+            const startDateTime = document.getElementById('startDateTime').value;
+            const closeDateTime = document.getElementById('closeDateTime').value;
+
+            if (startDateTime || closeDateTime) {
+                await setSubmissionStatus(startDateTime, closeDateTime);
+                window.location.reload();
+            } else {
+                alert('Please enter both start and close date-times.');
+            }
+        });
+
+        async function setSubmissionStatus(start, end) {
+            try {
+                const body = { start, end };
+                const response = await fetch('http://localhost:3001/game/submission-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        function toLocalDateTimeString(dateString) {
+            const date = new Date(dateString);
+            const offset = date.getTimezoneOffset();
+            const localDate = new Date(date.getTime() - offset * 60 * 1000);
+            return localDate.toISOString().slice(0, 16);
+        }
+
+        async function checkSubmissionStatus() {
+            try {
+                const response = await fetch('http://localhost:3001/game/submission-status');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const status = await response.json();
+                const currentDate = new Date();
+                let endDateTime;
+                const submissionStatusDiv = document.getElementById("submissionStatusDiv");
+                const startDateTimeInput = document.getElementById('startDateTime');
+                const closeDateTimeInput = document.getElementById('closeDateTime');
+
+                if (status.start && typeof status.start === 'string') {
+                    startDateTimeInput.value = toLocalDateTimeString(status.start);
+                }
+
+                if (status.end && typeof status.end === 'string') {
+                    closeDateTimeInput.value = toLocalDateTimeString(status.end);
+                    endDateTime = new Date(status.end);
+                } else {
+                    endDateTime = null;
+                }
+
+                if (endDateTime === null || currentDate < endDateTime) {
+                    submissionStatusDiv.innerHTML = '<p id="submissionOpen">Submission Status: Opened</p>';
+                } else {
+                    const formattedDate = endDateTime.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    submissionStatusDiv.innerHTML = `<p id="submissionClose">Submission Status: Closed at ${formattedDate}</p>`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        checkSubmissionStatus();
+    </script>
+</body>
+
+</html>
