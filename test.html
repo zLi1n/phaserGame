@@ -199,5 +199,43 @@ function handleOrientation(event) {
         }
         
        document.getElementById('requestPermissionBtn').addEventListener('click', onClick);
-
+/*
+const polygon = this.createPolygonFromImage('playerF1');
+        this.player.setInteractive(new Phaser.Geom.Polygon(polygon.points), Phaser.Geom.Polygon.Contains);
+createPolygonFromImage(imageName) {
+        const texture = this.textures.get(imageName).getSourceImage();
+        const width = texture.width;
+        const height = texture.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        context.drawImage(texture, 0, 0);
+        const imageData = context.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const points = [];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = (y * width + x) * 4;
+                if (data[index + 3] > 0) {
+                    if (x === 0 || y === 0 || x === width - 1 || y === height - 1 ||
+                        data[((y - 1) * width + x) * 4 + 3] === 0 ||
+                        data[((y + 1) * width + x) * 4 + 3] === 0 ||
+                        data[(y * width + (x - 1)) * 4 + 3] === 0 ||
+                        data[(y * width + (x + 1)) * 4 + 3] === 0) {
+                        points.push({ x: x, y: y });
+                    }
+                }
+            }
+        }
+        const centerX = width / 2;
+        const centerY = height / 2;
+        points.sort((a, b) => {
+            const angleA = Math.atan2(a.y - centerY, a.x - centerX);
+            const angleB = Math.atan2(b.y - centerY, b.x - centerX);
+            return angleA - angleB;
+        });
+        return new Phaser.Geom.Polygon(points);
+    }
+*/
 </script>

@@ -8,15 +8,38 @@ const sizes = {
     height: window.innerHeight
 };
 
-const bgImg = "/assets/bg.png";
 const rewards = {
-    "reward1": "/assets/basket.png",
-    "reward2": "/assets/apple.png",
-    //"reward2": "http://localhost:3000/merchant/m_anakmu/applogo.png",
-    "reward3": "/assets/orange.png",
-    "reward4": "/assets/mango.png"
 }
+const stoppBtnFrame = {
+};
 
+let backgroundUrl;
+let coverImageUrl;
+let boxUrl;
+let boxHighlightUrl;
+async function fetchImages() {
+    try {
+        const response = await fetch('http://localhost:3001/img/scratch-n-win');
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        const imageConfig = await response.json();
+        for (const key in imageConfig) {
+            if (key.startsWith("Reward")) {
+                rewards[key] = imageConfig[key];
+            }else if (key.startsWith("stopBtn")) {
+                stoppBtnFrame[key] = imageConfig[key];
+            }
+        }
+        backgroundUrl = imageConfig.background;
+        coverImageUrl = imageConfig.coverImage;
+        boxUrl = imageConfig.box;
+        boxHighlightUrl = imageConfig.boxHighlight;
+
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+    }
+}
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -33,12 +56,15 @@ class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image("bg", bgImg);
-        this.load.image('coverImage', 'assets/background.png');
-        this.load.image('box', 'assets/yellow-starburst.png');
-        this.load.image('highlight', 'assets/starburst.png');
-        this.load.image('stopBtn1', 'assets/stop-btn-1.png');
-        this.load.image('stopBtn2', 'assets/stop-btn-2.png');
+        this.load.image("bg", backgroundUrl);
+        this.load.image('coverImage', coverImageUrl);
+        this.load.image('box', boxUrl);
+        this.load.image('highlight', boxHighlightUrl);
+        for (const key in stoppBtnFrame) {
+            if (stoppBtnFrame.hasOwnProperty(key)) {
+                this.load.image(key, stoppBtnFrame[key]);
+            }
+        }
         for (const key in rewards) {
             if (rewards.hasOwnProperty(key)) {
                 this.load.image(key, rewards[key]);
@@ -100,15 +126,17 @@ class GameScene extends Phaser.Scene {
             font: "26px Arial",
             fill: "#000000",
         }).setOrigin(0.5, 0.5);
+
+        const frameKeys = Object.keys(stoppBtnFrame);
+        const frames = frameKeys.map(key => ({ key }));
+        const frameRate = frameKeys.length * 2;
         this.anims.create({
             key: 'snooze',
-            frames: [
-                { key: 'stopBtn1' },
-                { key: 'stopBtn2' }
-            ],
-            frameRate: 4,
+            frames: frames,
+            frameRate: frameRate,
             repeat: -1
         });
+
         const stopButton = this.add.sprite(sizes.width / 2, startY + totalHeight + 30, 'stopBtn1').setOrigin(0.5, 0);
         stopButton.setInteractive();
         const scaleX = sizes.width / 4 / stopButton.width;
@@ -118,7 +146,7 @@ class GameScene extends Phaser.Scene {
         stopButton.on('animationupdate', (animation, frame) => {
             stopButton.setDisplaySize(boxSize, boxSize);
         });
-        
+
         let stopButtonClicked = false;
 
         stopButton.on('pointerdown', () => {
@@ -241,7 +269,7 @@ class GameScene extends Phaser.Scene {
 
     clearCover(x, y) {
         const radius = 20;
-        const scale = this.cover.scaleX; 
+        const scale = this.cover.scaleX;
         let localX = (x - (sizes.width / 2 - (this.coverHelperCanvas.width * scale) / 2)) / scale;
         let localY = (y - (sizes.height / 2 - (this.coverHelperCanvas.height * scale) / 2)) / scale;
 
@@ -295,7 +323,8 @@ class GameScene extends Phaser.Scene {
     }
 
 }
-
+let game;
+fetchImages().then(() => {
 const config = {
     type: Phaser.AUTO,
     scale: {
@@ -314,7 +343,8 @@ const config = {
     }
 };
 
-const game = new Phaser.Game(config);
+game = new Phaser.Game(config);
+});
 function resize(game) {
     game.scale.resize(sizes.width, sizes.height);
 }

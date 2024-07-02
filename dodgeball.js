@@ -6,14 +6,48 @@ const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
 };
-const playerImgs = {
+const playerFrontFrame = {
     "playerF1": "/assets/front-walk-null.png",
     "playerF2": "/assets/front-walk-right.png",
-    "playerF3": "/assets/front-walk-left.png",
+    "playerF3": "/assets/front-walk-left.png"
+}
+const playerBackFrame = {
     "playerB1": "/assets/back-walk-null.png",
     "playerB2": "/assets/back-walk-right.png",
     "playerB3": "/assets/back-walk-left.png"
 }
+let backgroundUrl;
+let borderUrl;
+let heartUrl;
+let ballUrl;
+let buffUrl;
+let debuffUrl;
+async function fetchImages() {
+    try {
+        const response = await fetch('http://localhost:3001/img/dodgeball');
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        const imageConfig = await response.json();
+        for (const key in imageConfig) {
+            if (key.startsWith("playerF")) {
+                playerFrontFrame[key] = imageConfig[key];
+            } else if (key.startsWith("playerB")) {
+                playerBackFrame[key] = imageConfig[key];
+            }
+        }
+        backgroundUrl = imageConfig.background;
+        borderUrl = imageConfig.border;
+        heartUrl = imageConfig.heart;
+        ballUrl = imageConfig.ball;
+        buffUrl = imageConfig.buff;
+        debuffUrl = imageConfig.debuff;
+
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+    }
+}
+
 class GameScene extends Phaser.Scene {
     constructor() {
         super("GameScene");
@@ -23,76 +57,136 @@ class GameScene extends Phaser.Scene {
         this.initialized = false;
         this.playerHealth = 5;
         this.heartImages = [];
-        this.isImmune = false; 
+        this.isImmune = false;
         this.immunityDuration = 3000;
         this.immunityTimer = null;
         this.immunitySource = null;
         this.balls = [];
         this.maxBalls = 2;
-        this.gameDuration = 30; 
+        this.gameDuration = 20;
+        this.quarterTime = this.gameDuration * 1000 / 4;
+        this.originalSensitivity = 4;
+        this.debuffSensitivity = 2;
+        this.debuffDuration = 5000;
+        this.isDebuffed = false;
+        this.originalFrameRate = 8;
+        this.debuffFrameRate = 4;
+        this.maxDebuffs = 3;
+        this.activeDebuffs = [];
+        this.initialDebuffSpawnInterval = 5000;
     }
 
-    preload() {//351 x 456
-        for (const key in playerImgs) {
-            if (playerImgs.hasOwnProperty(key)) {
-                this.load.image(key, playerImgs[key]);
+    preload() {
+        for (const key in playerFrontFrame) {
+            if (playerFrontFrame.hasOwnProperty(key)) {
+                this.load.image(key, playerFrontFrame[key]);
             }
         }
-        this.load.image("apple", "/assets/apple.png");
-        this.load.image("fence", "/assets/fence.png");
-        this.load.image("bg", "/assets/floor.png");
-        this.load.image("ball", "/assets/ball.png");
-        this.load.image("buff", "/assets/buffBall.png");
-        this.load.image('heart', '/assets/heart.png');
+        for (const key in playerBackFrame) {
+            if (playerBackFrame.hasOwnProperty(key)) {
+                this.load.image(key, playerBackFrame[key]);
+            }
+        }
+        this.load.image("fence", borderUrl);
+        this.load.image("bg", backgroundUrl);
+        this.load.image("ball", ballUrl);
+        this.load.image("buff", buffUrl);
+        this.load.image("debuff", debuffUrl);
+        this.load.image('heart', heartUrl);
+        this.load.audio("bgMusic", "/assets/bgMusic.mp3");
+        this.load.audio("hitSound", "/assets/hit-sound-effect.mp3");
+        this.load.audio("buffSound", "/assets/power-up-sound.mp3");
+        this.load.audio("debuffSound", "/assets/power-down-sound.mp3");
     }
 
     create() {
         this.scene.pause("GameScene");
         this.bg = this.add.image(0, 0, 'bg').setOrigin(0.5, 0.5);
         this.resizeBackground();
-        // this.permissionText = this.add.text(20, 60, 'Requesting Permission...', { fontSize: '20px', fill: '#ffffff' });
+        this.bgMusic = this.sound.add("bgMusic", {
+            loop: true
+        });
+        this.hitMusic = this.sound.add("hitSound");
+        this.buffMusic = this.sound.add("buffSound");
+        this.debuffMusic = this.sound.add("debuffSound");
+        this.bgMusic.play();
+        const startDiv = document.createElement("div");
+        startDiv.id = "startDiv";
+        startDiv.style.width = "100%";
+        startDiv.style.height = "100%";
+        startDiv.style.backgroundColor = "rgba(52, 54, 61, 0.7)";
+        startDiv.style.display = "flex";
+        startDiv.style.flexDirection = "column";
+        startDiv.style.justifyContent = "center";
+        startDiv.style.alignItems = "center";
+        startDiv.style.position = "absolute";
+        startDiv.style.top = "0";
+        startDiv.style.left = "0";
+        startDiv.style.zIndex = "2";
+        const startBtn = document.createElement("button");
+        startBtn.id = "startBtn";
+        startBtn.textContent = "Start";
+        startBtn.style.backgroundColor = "white";
+        startBtn.style.color = "black";
+        startBtn.style.border = "2px solid #04AA6D";
+        startBtn.style.borderRadius = "10px";
+        startBtn.style.padding = "16px 32px";
+        startBtn.style.textAlign = "center";
+        startBtn.style.fontSize = "16px";
+        startBtn.style.margin = "4px 2px";
+        startBtn.style.transitionDuration = "0.4s";
+        startBtn.style.cursor = "pointer";
+        startBtn.style.position = 'absolute';
+        startBtn.style.top = '50%';
+        startBtn.style.left = '50%';
+        startBtn.style.transform = "translate(-50%, -50%)";
 
-        const button = document.createElement('button');
-        button.textContent = 'Request Permission';
-        button.style.position = 'absolute';
-        button.style.top = '50%';
-        button.style.left = '50%';
-        button.style.transform = "translate(-50%, -50%)";
-        document.body.appendChild(button);
-
-        // Add event listener to the button
-        button.addEventListener('click', () => {
-            this.requestPermission();
-            button.style.display = "none";
+        startBtn.addEventListener("mouseenter", () => {
+            if (startBtn.disabled) return;
+            startBtn.style.backgroundColor = "#04AA6D";
+            startBtn.style.color = "white";
         });
 
-        // Request permission if supported
+        startBtn.addEventListener("mouseleave", () => {
+            if (startBtn.disabled) return;
+            startBtn.style.backgroundColor = "white";
+            startBtn.style.color = "black";
+        })
+        document.body.appendChild(startDiv);
+
+        startDiv.appendChild(startBtn);
+
+        startBtn.addEventListener('click', () => {
+            this.requestPermission();
+            startBtn.style.display = "none";
+            startDiv.style.display = "none";
+
+        });
+
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
             this.requestPermission();
-        } else {
-            // this.permissionText.setText('Device Motion Events Not Supported');
         }
         this.updateHealthDisplay();
+        this.sensitivity = this.originalSensitivity;
         this.player = this.physics.add.sprite(this.sys.canvas.width / 2, this.sys.canvas.height / 2, 'playerF1').setOrigin(0.5, 0.5);
         const scaleX = sizes.width / 6 / this.player.width;
         const scaleY = sizes.height / 8 / this.player.height;
         const scale = Math.min(scaleX, scaleY);
         this.player.setScale(scale);
-        /*const polygon = this.createPolygonFromImage('playerF1');
-        this.player.setInteractive(new Phaser.Geom.Polygon(polygon.points), Phaser.Geom.Polygon.Contains);*/
-        this.fx = this.player.preFX.addColorMatrix();
         
+        this.fx = this.player.preFX.addColorMatrix();
+
         this.playerHealth = 5;
 
         this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
 
         this.createBorders();
-        const fontSizeFactor = 0.06; // Adjust this factor based on your preference
+        const fontSizeFactor = 0.06;
         const responsiveFontSize = Math.min(this.sys.canvas.width, this.sys.canvas.height) * fontSizeFactor;
 
-        this.timerText = this.add.text(this.sys.canvas.width - 50, 50, `Time: ${this.gameDuration}`, { 
-            fontSize: `${responsiveFontSize}px`, 
-            fill: '#fff' ,
+        this.timerText = this.add.text(this.sys.canvas.width - 50, 50, `Time: ${this.gameDuration}`, {
+            fontSize: `${responsiveFontSize}px`,
+            fill: '#fff',
             fontFamily: 'Arial'
         }).setOrigin(1, 0);
 
@@ -104,16 +198,17 @@ class GameScene extends Phaser.Scene {
         });
 
         this.time.addEvent({
-            delay: 10000, 
+            delay: 10000,
             callback: this.increaseBalls,
             callbackScope: this,
             loop: true
         });
-
-        // Initialize balls
         for (let i = 0; i < this.maxBalls; i++) {
             this.spawnBall();
         }
+        this.gameStartTime = this.time.now;
+
+        this.startGameTimers();
         this.physics.add.overlap(this.player, this.ball, this.onBallHitPlayer, null, this);
         this.anims.create({
             key: 'walkFront',
@@ -137,12 +232,30 @@ class GameScene extends Phaser.Scene {
             frameRate: 8,
             repeat: -1
         });
-        this.spawnBuff();
-        // Draw the polygon outline for visualization
-        /* const graphics = this.add.graphics({ lineStyle: { width: 2, color: 0xffff00 } }).setScale(0.5);
-         graphics.strokePoints(polygon.points, true);
-         graphics.x = sprite.x;
-         graphics.y = sprite.y;*/
+        this.anims.create({
+            key: 'walkFrontDebuffed',
+            frames: [
+                { key: 'playerF1' },
+                { key: 'playerF2' },
+                { key: 'playerF1' },
+                { key: 'playerF3' }
+            ],
+            frameRate: this.debuffFrameRate,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'walkBackDebuffed',
+            frames: [
+                { key: 'playerB1' },
+                { key: 'playerB2' },
+                { key: 'playerB1' },
+                { key: 'playerB3' }
+            ],
+            frameRate: this.debuffFrameRate,
+            repeat: -1
+        });
+
     }
     resizeBackground() {
         const { width, height } = this.sys.game.scale.gameSize;
@@ -153,50 +266,6 @@ class GameScene extends Phaser.Scene {
         this.bg.setPosition(width / 2, height / 2);
     }
 
-    createPolygonFromImage(imageName) {
-        const texture = this.textures.get(imageName).getSourceImage();
-        const width = texture.width;
-        const height = texture.height;
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext('2d');
-        context.drawImage(texture, 0, 0);
-        const imageData = context.getImageData(0, 0, width, height);
-        const data = imageData.data;
-        const points = [];
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const index = (y * width + x) * 4;
-                if (data[index + 3] > 0) {
-                    if (x === 0 || y === 0 || x === width - 1 || y === height - 1 ||
-                        data[((y - 1) * width + x) * 4 + 3] === 0 ||
-                        data[((y + 1) * width + x) * 4 + 3] === 0 ||
-                        data[(y * width + (x - 1)) * 4 + 3] === 0 ||
-                        data[(y * width + (x + 1)) * 4 + 3] === 0) {
-                        points.push({ x: x, y: y });
-                    }
-                }
-            }
-        }
-        const centerX = width / 2;
-        const centerY = height / 2;
-        points.sort((a, b) => {
-            const angleA = Math.atan2(a.y - centerY, a.x - centerX);
-            const angleB = Math.atan2(b.y - centerY, b.x - centerX);
-            return angleA - angleB;
-        });
-        return new Phaser.Geom.Polygon(points);
-    }
-
-    addHoverEffect(sprite) {
-        sprite.setTint(0xff0000); //red
-    }
-
-    removeHoverEffect(sprite) {
-        sprite.clearTint();
-    }
-
     requestPermission() {
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission()
@@ -204,18 +273,11 @@ class GameScene extends Phaser.Scene {
                     console.log('Permission request state:', state);
                     if (state === 'granted') {
                         window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
-                        //this.permissionText.setText('Permission Granted');
                         this.scene.resume("GameScene");
-                    } else {
-                        //this.permissionText.setText('Request Rejected');
                     }
-                })
-                .catch((error) => {
-                    //this.permissionText.setText('Error: ' + error);
                 });
         } else {
             window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
-            //this.permissionText.setText('Permission Granted');
             this.scene.resume("GameScene");
         }
     }
@@ -225,7 +287,6 @@ class GameScene extends Phaser.Scene {
         const beta = event.beta;
         const gamma = event.gamma;
 
-        const sensitivity = 4;
         const border = 50;
         const dampingFactor = 0.1;
         const orientationThreshold = 0.15;
@@ -245,8 +306,8 @@ class GameScene extends Phaser.Scene {
         const gammaChange = Math.abs(gamma - this.lastGamma);
         const isOrientationChanged = betaChange > orientationThreshold || gammaChange > orientationThreshold;
 
-        let targetLeftPosition = this.sys.canvas.width / 2 + (gamma - this.initialGamma) * sensitivity;
-        let targetTopPosition = this.sys.canvas.height / 2 + (beta - this.initialBeta) * sensitivity * 2;
+        let targetLeftPosition = this.sys.canvas.width / 2 + (gamma - this.initialGamma) * this.sensitivity;
+        let targetTopPosition = this.sys.canvas.height / 2 + (beta - this.initialBeta) * this.sensitivity * 2;
 
         const scaledWidth = this.player.width * this.player.scaleX;
         const scaledHeight = this.player.height * this.player.scaleY;
@@ -282,9 +343,9 @@ class GameScene extends Phaser.Scene {
         if (isOrientationChanged) {
             const deltaY = newTopPosition - currentTopPosition;
             if (deltaY < 0) {
-                this.player.anims.play('walkBack', true);
+                this.player.anims.play(this.isDebuffed ? 'walkBackDebuffed' : 'walkBack', true);
             } else if (deltaY > 0) {
-                this.player.anims.play('walkFront', true);
+                this.player.anims.play(this.isDebuffed ? 'walkFrontDebuffed' : 'walkFront', true);
             }
             this.lastMoveTime = currentTime;
         } else if (currentTime - this.lastMoveTime > stationaryTime) {
@@ -294,13 +355,13 @@ class GameScene extends Phaser.Scene {
         this.lastBeta = beta;
         this.lastGamma = gamma;
     }
+
     createBorders() {
         const borderWidth = 50;
         const fenceTexture = this.textures.get('fence');
         const fenceImage = fenceTexture.getSourceImage();
         const scaleFactor = borderWidth / fenceImage.height;
 
-        // Add top border
         this.topBorder = this.add.tileSprite(
             this.scale.width / 2,
             borderWidth / 2,
@@ -312,7 +373,6 @@ class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.topBorder, true);
         this.topBorder.body.setSize(this.scale.width, borderWidth);
 
-        // Add bottom border
         this.bottomBorder = this.add.tileSprite(
             this.scale.width / 2,
             this.scale.height - borderWidth / 2,
@@ -324,7 +384,6 @@ class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.bottomBorder, true);
         this.bottomBorder.body.setSize(this.scale.width, borderWidth);
 
-        // Add left border
         this.leftBorder = this.add.tileSprite(
             borderWidth / 2,
             this.scale.height / 2,
@@ -337,7 +396,6 @@ class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.leftBorder, true);
         this.leftBorder.body.setSize(borderWidth, this.scale.height);
 
-        // Add right border
         this.rightBorder = this.add.tileSprite(
             this.scale.width - borderWidth / 2,
             this.scale.height / 2,
@@ -355,8 +413,7 @@ class GameScene extends Phaser.Scene {
             this.gameDuration--;
             this.timerText.setText(`Time: ${this.gameDuration}`);
         } else {
-            // End game or restart when timer reaches 0
-            this.scene.restart();
+            this.gameOver();
         }
     }
 
@@ -364,109 +421,216 @@ class GameScene extends Phaser.Scene {
         this.maxBalls++;
         this.spawnBall();
     }
+    startGameTimers() {
+        this.time.delayedCall(this.quarterTime, () => {
+            this.spawnDebuff();
+            this.spawnBuff();
+        }, null, this);
+
+        this.startDebuffSpawning();
+    }
+
+    startDebuffSpawning() {
+        const elapsedTime = this.time.now - this.gameStartTime;
+        const remainingTime = this.gameDuration - elapsedTime;
+        const spawnInterval = this.calculateDebuffSpawnInterval(remainingTime);
+
+        if (remainingTime > 0) {
+            this.time.delayedCall(spawnInterval, () => {
+                this.spawnDebuff();
+                this.startDebuffSpawning();
+            }, null, this);
+        }
+    }
+
+    calculateDebuffSpawnInterval(remainingTime) {
+        const minInterval = 1000;
+        const maxInterval = 5000;
+        const interval = (remainingTime / this.gameDuration) * (maxInterval - minInterval) + minInterval;
+        return interval;
+    }
+
     spawnBall() {
         const positions = [
-            { x: -50, y: Phaser.Math.Between(0, this.scale.height) },  // left
-            { x: this.scale.width + 50, y: Phaser.Math.Between(0, this.scale.height) },  // right
-            { x: Phaser.Math.Between(0, this.scale.width), y: -50 },  // top
-            { x: Phaser.Math.Between(0, this.scale.width), y: this.scale.height + 50 }  // bottom
+            { x: -50, y: Phaser.Math.Between(0, this.scale.height) },
+            { x: this.scale.width + 50, y: Phaser.Math.Between(0, this.scale.height) },
+            { x: Phaser.Math.Between(0, this.scale.width), y: -50 },
+            { x: Phaser.Math.Between(0, this.scale.width), y: this.scale.height + 50 }
         ];
         const position = Phaser.Utils.Array.GetRandom(positions);
-    
+
         if (!this.player) {
             console.error('Player object is null or undefined. Cannot spawn ball.');
             return;
         }
-    
+
         const ball = this.physics.add.sprite(position.x, position.y, 'ball').setOrigin(0.5, 0.5);
         const scaleX = this.sys.canvas.width / 12 / ball.width;
         const scaleY = this.sys.canvas.height / 16 / ball.height;
         const scale = Math.min(scaleX, scaleY);
         ball.setScale(scale);
-    
+
         ball.setBounce(1);
         ball.setCollideWorldBounds(true);
-    
+
         ball.bounceCount = 0;
-    
+
         if (this.player.active) {
-            const randomSpeed = Phaser.Math.Between(100, 300); // Set random speed between 100 and 300
+            const speedFactor = this.getSpeedFactor();
+            const randomSpeed = Phaser.Math.Between(100 * speedFactor, 300 * speedFactor);
             this.physics.moveToObject(ball, this.player, randomSpeed);
-    
+
             this.physics.add.overlap(this.player, ball, this.onBallHitPlayer, null, this);
         } else {
             console.error('Player is not active or does not exist. Cannot move ball towards player.');
         }
-    
+
         this.physics.add.collider(ball, this.topBorder, this.onBallBounce, null, this);
         this.physics.add.collider(ball, this.bottomBorder, this.onBallBounce, null, this);
         this.physics.add.collider(ball, this.leftBorder, this.onBallBounce, null, this);
         this.physics.add.collider(ball, this.rightBorder, this.onBallBounce, null, this);
-    
+
         this.balls.push(ball);
     }
-    
+
+    getSpeedFactor() {
+        const maxDuration = 30;
+        const remainingTime = this.gameDuration;
+        return 1 + (maxDuration - remainingTime) / maxDuration;
+    }
+
+
     spawnBuff() {
         const positions = [
-            { x: -50, y: Phaser.Math.Between(0, this.scale.height) },  // left
-            { x: this.scale.width + 50, y: Phaser.Math.Between(0, this.scale.height) },  // right
-            { x: Phaser.Math.Between(0, this.scale.width), y: -50 },  // top
-            { x: Phaser.Math.Between(0, this.scale.width), y: this.scale.height + 50 }  // bottom
+            { x: -50, y: Phaser.Math.Between(0, this.scale.height) },
+            { x: this.scale.width + 50, y: Phaser.Math.Between(0, this.scale.height) },
+            { x: Phaser.Math.Between(0, this.scale.width), y: -50 },
+            { x: Phaser.Math.Between(0, this.scale.width), y: this.scale.height + 50 }
         ];
         const position = Phaser.Utils.Array.GetRandom(positions);
         const targetPosition = { x: Phaser.Math.Between(50, this.scale.width - 50), y: Phaser.Math.Between(50, this.scale.height - 50) };
-    
         const buff = this.physics.add.sprite(position.x, position.y, 'buff').setOrigin(0.5, 0.5);
         const scaleX = this.sys.canvas.width / 12 / buff.width;
         const scaleY = this.sys.canvas.height / 16 / buff.height;
         const scale = Math.min(scaleX, scaleY);
-        buff.setScale(scale); // Adjust the scale as needed
-    
-        // Move the buff to a random position inside the screen
+        buff.setScale(scale);
         this.physics.moveTo(buff, targetPosition.x, targetPosition.y, 200);
-    
-        // Timer to manage buff lifecycle
         const buffLifecycleTimer = this.time.addEvent({
-            delay: 3000, // 3 seconds
+            delay: 3000,
             callback: () => {
                 if (buff.active) {
                     buff.destroy();
                 }
-                const randomDelay = Phaser.Math.Between(1000, 3000); // Random delay before spawning another buff
+                const randomDelay = Phaser.Math.Between(1000, 3000);
                 this.time.delayedCall(randomDelay, () => this.spawnBuff(), null, this);
             },
             callbackScope: this
         });
-    
-        // Collision detection with player
         this.physics.add.overlap(this.player, buff, (player, buff) => {
             if (buff.active) {
-                buff.destroy(); // Destroy the buff only if it is still active
+                buff.destroy();
                 this.activateImmunity('buff');
             }
-            buffLifecycleTimer.remove(); // Remove the lifecycle timer as the buff is collected
-            const randomDelay = Phaser.Math.Between(1000, 3000); // Random delay before spawning another buff
+            buffLifecycleTimer.remove();
+            const randomDelay = Phaser.Math.Between(3000, 8000);
             this.time.delayedCall(randomDelay, () => this.spawnBuff(), null, this);
         }, null, this);
     }
     onPlayerCollectBuff(player, buff) {
         if (buff.active) {
-            buff.destroy(); // Destroy the buff only if it is still active
+            buff.destroy();           
             this.activateImmunity();
         }
     }
     spawnDebuff() {
+        if (!this.player) {
+            console.error('Player object is null or undefined. Cannot spawn debuff.');
+            return;
+        }
+
+        if (this.activeDebuffs.length >= this.maxDebuffs) {
+            return;
+        }
+
         const positions = [
-            { x: Phaser.Math.Between(50, this.scale.width - 50), y: Phaser.Math.Between(50, this.scale.height - 50) }
+            { x: -50, y: Phaser.Math.Between(0, this.scale.height) },
+            { x: this.scale.width + 50, y: Phaser.Math.Between(0, this.scale.height) },
+            { x: Phaser.Math.Between(0, this.scale.width), y: -50 },
+            { x: Phaser.Math.Between(0, this.scale.width), y: this.scale.height + 50 }
         ];
         const position = Phaser.Utils.Array.GetRandom(positions);
-    
+
         const debuff = this.physics.add.sprite(position.x, position.y, 'debuff').setOrigin(0.5, 0.5);
-        debuff.setScale(0.5); // Adjust the scale as needed
-    
-        this.physics.add.overlap(this.player, debuff, this.onPlayerCollectDebuff, null, this);
+        const scaleX = this.sys.canvas.width / 12 / debuff.width;
+        const scaleY = this.sys.canvas.height / 16 / debuff.height;
+        const scale = Math.min(scaleX, scaleY);
+        debuff.setScale(scale);
+
+        debuff.setBounce(1);
+        debuff.setCollideWorldBounds(true);
+        debuff.bounceCount = 0;
+
+        this.activeDebuffs.push(debuff);
+
+        this.physics.add.collider(debuff, this.topBorder, this.onDebuffBounce, null, this);
+        this.physics.add.collider(debuff, this.bottomBorder, this.onDebuffBounce, null, this);
+        this.physics.add.collider(debuff, this.leftBorder, this.onDebuffBounce, null, this);
+        this.physics.add.collider(debuff, this.rightBorder, this.onDebuffBounce, null, this);
+
+        this.physics.add.overlap(this.player, debuff, this.onPlayerHitDebuff, null, this);
     }
-    
+
+    onDebuffBounce(debuff) {
+        debuff.bounceCount++;
+        if (debuff.bounceCount >= 2) {
+            const speedFactor = this.getSpeedFactor();
+            const randomSpeed = Phaser.Math.Between(200 * speedFactor, 500 * speedFactor);
+            this.physics.moveToObject(debuff, this.player, randomSpeed);
+
+            const stopDelay = Phaser.Math.Between(2000, 3000);
+            this.time.delayedCall(stopDelay, () => {
+                if (debuff.active) {
+                    debuff.setVelocity(0, 0);
+                    const stayDuration = 2000;
+                    this.time.delayedCall(stayDuration, () => {
+                        if (debuff.active) {
+                            debuff.destroy();
+                            this.activeDebuffs = this.activeDebuffs.filter(d => d !== debuff);
+                            const randomDelay = Phaser.Math.Between(3000, 8000);
+                            this.time.delayedCall(randomDelay, () => this.spawnDebuff(), null, this);
+                        }
+                    }, null, this);
+                }
+            }, null, this);
+        }
+    }
+
+    onPlayerHitDebuff(player, debuff) {
+        if (!this.isDebuffed) {
+            this.applyDebuff();
+            this.debuffMusic.play();
+        }
+        debuff.destroy();
+        this.activeDebuffs = this.activeDebuffs.filter(d => d !== debuff);
+        const randomDelay = Phaser.Math.Between(3000, 8000);
+        this.time.delayedCall(randomDelay, () => this.spawnDebuff(), null, this);
+    }
+
+    applyDebuff() {
+        this.isDebuffed = true;
+        this.sensitivity = this.debuffSensitivity;
+
+        this.player.anims.play('walkFrontDebuffed', true);
+        this.player.anims.play('walkBackDebuffed', true);
+
+        this.time.delayedCall(this.debuffDuration, () => {
+            this.isDebuffed = false;
+            this.sensitivity = this.originalSensitivity;
+
+            this.player.anims.play('walkFront', true);
+            this.player.anims.play('walkBack', true);
+        });
+    }
     onBallBounce(ball) {
         ball.bounceCount += 1;
         const bouce = Phaser.Math.Between(1, 4);
@@ -474,7 +638,7 @@ class GameScene extends Phaser.Scene {
             this.stopBall(ball);
         }
     }
-//buff-imute (colorful glay)/ & double score, debuff-dizzy (animation) & slowndown (drop frame), timmer?/ (have hp), score (add by time)
+
     stopBall(ball) {
         const delay = Phaser.Math.Between(1000, 3000);
         this.time.delayedCall(delay, () => {
@@ -490,12 +654,12 @@ class GameScene extends Phaser.Scene {
             }
         }, null, this);
     }
- 
+
     activateImmunity(source) {
         if (this.isImmune && this.immunitySource === 'buff' && source !== 'buff') return;
         this.isImmune = true;
         this.immunitySource = source;
-    
+
         if (source === 'buff') {
             this.immunityTween = this.tweens.addCounter({
                 from: 0,
@@ -506,7 +670,7 @@ class GameScene extends Phaser.Scene {
                     this.fx.hue(this.immunityTween.getValue());
                 }
             });
-    
+            this.buffMusic.play();
             this.immunityTimer = this.time.delayedCall(this.immunityDuration, () => {
                 this.isImmune = false;
                 this.immunityTween.stop();
@@ -521,34 +685,43 @@ class GameScene extends Phaser.Scene {
             });
         }
     }
-    
+
     flashPlayer() {
-        this.tweens.add({
-            targets: this.player,
-            alpha: { from: 1, to: 0 },
-            duration: 100,
-            yoyo: true,
-            repeat: 5
-        });
+        const flashDuration = 3000;
+        const flashCount = 10;
+        const toggleVisibility = (visible) => {
+            return this.tweens.add({
+                targets: this.player,
+                alpha: visible ? 1 : 0,
+                duration: flashDuration / (flashCount * 2),
+                ease: 'Linear',
+                yoyo: true,
+                repeat: flashCount - 1,
+                onComplete: () => {
+                    this.player.alpha = 1;
+                }
+            });
+        };
+
+        toggleVisibility(false);
     }
-    
+
     onBallHitPlayer(player, ball) {
-        if (!this.isImmune || this.immunitySource !== 'buff') {
+        if (!this.isImmune) {
             this.playerHealth -= 1;
             this.updateHealthDisplay();
-            console.log('Player hit! Health:', this.playerHealth);
+            this.hitMusic.play();
             this.activateImmunity('hit');
-    
+
             if (this.playerHealth <= 0) {
-                console.log('Game Over');
-                this.scene.restart();
+                this.gameOver();
             } else {
                 ball.destroy();
                 this.spawnBall();
             }
         } else {
             ball.destroy();
-            this.spawnBall(); 
+            this.spawnBall();
         }
     }
     updateHealthDisplay() {
@@ -572,7 +745,6 @@ class GameScene extends Phaser.Scene {
         tempHeart.destroy();
 
         const spacing = spacingFactor * canvasWidth;
-        const newStartX = (canvasWidth - ((width * numHearts) + (numHearts - 1) * spacing));
 
         for (let i = 0; i < numHearts; i++) {
             const heart = this.add.image(startX + i * (width + spacing), startY, 'heart');
@@ -586,8 +758,41 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-}
+    gameOver() {
+        this.sys.game.destroy(true);
+        let status = "Win";
+        let userId = new URLSearchParams(window.location.search).get('userId');
+        let points = this.playerHealth;
+        let date = Date.now();
+        let reward = "basic-reward";
+        if (this.playerHealth >= 4) {
+            reward = "win-reward";
+        } else if (this.playerHealth >= 3) {
+            reward = "win-reward2";
+        } else if (this.playerHealth >= 1) {
+            reward = "basic-reward3";
+        } else {
+            status = "Lose";
+            reward = null;
+        }
 
+        fetch('http://localhost:3001/game/game-result', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId, date, points, status, reward })
+        }).then(response => response.json())
+            .then(data => {
+                window.location.href = `gameOver.html?userId=${userId}`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+}
+let game;
+fetchImages().then(() => {
 const config = {
     type: Phaser.AUTO,
     scale: {
@@ -612,7 +817,8 @@ const config = {
     }
 };
 
-const game = new Phaser.Game(config);
+game = new Phaser.Game(config);
+});
 function resize(game) {
     game.scale.resize(sizes.width, sizes.height);
 }

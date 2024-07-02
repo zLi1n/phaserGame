@@ -1,16 +1,8 @@
 import './style.css'
 import './changeCanva.js';
 import Phaser, { Loader } from "phaser";
-const body = document.querySelector('body');
-body.style.backgroundImage = "url('/assets/bakery-shop.png')";
-body.style.backgroundSize = "cover";
-body.style.backgroundPosition = "center";
-const items = {
-  "item1": "/assets/gemstones1.png",
-  "item2": "/assets/gemstones2.png",
-  "item3": "/assets/gemstones3.png",
-  "item4": "/assets/gemstones4.png"
-}
+
+const items = {}
 let game;
 let gameOptions = {
   fieldSize: 7,
@@ -21,14 +13,46 @@ let gameOptions = {
   destroySpeed: 200
 }
 let point = 0;
-let move = 5;
+let move = 10;
+let total = 5000;
 const HORIZONTAL = 1;
 const VERTICAL = 2;
+let backgroundUrl;
+let matchEffectUrl;
+let fieldBackgroundUrl;
+let selectEffectUrl;
+const body = document.querySelector('body');
+body.style.backgroundSize = "cover";
+body.style.backgroundPosition = "center";
+async function fetchImages() {
+  try {
+    const response = await fetch('http://localhost:3001/img/match-three');
+    if (!response.ok) {
+      throw new Error('Network response was not ok ' + response.statusText);
+    }
+    const imageConfig = await response.json();
+    for (const key in imageConfig) {
+      if (key.startsWith("item")) {
+        items[key] = imageConfig[key];
+      }
+    }
+    backgroundUrl = imageConfig.background;
+    matchEffectUrl = imageConfig.matchEffect;
+    fieldBackgroundUrl = imageConfig.fieldBackground;
+    selectEffectUrl = imageConfig.selectEffect;
+    body.style.backgroundImage = `url('${backgroundUrl}')`;
 
+  } catch (error) {
+    console.error('There was a problem with the fetch operation:', error);
+  }
+}
 const sizes = {
   width: gameOptions.fieldSize * gameOptions.gemSize,
   height: gameOptions.fieldSize * gameOptions.gemSize,
 };
+
+fetchImages();
+
 window.onload = function () {
   let gameConfig = {
     width: gameOptions.fieldSize * gameOptions.gemSize,
@@ -39,6 +63,7 @@ window.onload = function () {
   window.focus()
   resize();
   window.addEventListener("resize", resize, false);
+
 }
 
 class playGame extends Phaser.Scene {
@@ -47,18 +72,27 @@ class playGame extends Phaser.Scene {
     this.highlightMatchCount = 0;
   }
   preload() {
-    this.load.image("bg", "/assets/bg.png");
-    this.load.image("frame", "/assets/box-frame.png");
-    this.load.image("light", "/assets/fire.png");
+    this.load.image("bg", fieldBackgroundUrl);
+    this.load.image("frame", selectEffectUrl);
+    this.load.image("light", matchEffectUrl);
     for (const key in items) {
       if (items.hasOwnProperty(key)) {
         this.load.image(key, items[key]);
       }
     }
+    this.load.audio("bgMusic", "/assets/bgMusic.mp3");
+    this.load.audio("blingSound", "/assets/Bling-Sound-Effect.mp3");
+    this.load.audio("swipeSound", "/assets/swipe-swoosh-sound-effect.mp3");
   }
   create() {
     this.bg = this.add.image(0, 0, 'bg').setOrigin(0.5, 0.5);
     this.resizeBackground();
+    this.bgMusic = this.sound.add("bgMusic", {
+      loop: true
+    });
+    this.swipeMusic = this.sound.add("swipeSound");
+    this.blingMusic = this.sound.add("blingSound");
+    this.bgMusic.play();
     this.frameSprite = this.add.sprite(0, 0, "frame");
     this.frameSprite.setVisible(false);
     const scaleX = sizes.width / (gameOptions.fieldSize) / this.frameSprite.width;
@@ -112,7 +146,7 @@ class playGame extends Phaser.Scene {
       callbackScope: this,
       loop: false
     });
-    this.highlightMatchCount = 0; // Reset the counter here
+    this.highlightMatchCount = 0;
   }
   drawField() {
     this.gameArray = [];
@@ -266,20 +300,17 @@ class playGame extends Phaser.Scene {
     this.canPick = false;
     let allGems = [];
 
-    // Collect all gems
     for (let i = 0; i < gameOptions.fieldSize; i++) {
       for (let j = 0; j < gameOptions.fieldSize; j++) {
         allGems.push(this.gameArray[i][j]);
       }
     }
 
-    // Shuffle the array
     for (let i = allGems.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [allGems[i], allGems[j]] = [allGems[j], allGems[i]];
     }
 
-    // Place gems back in the field
     let index = 0;
     for (let i = 0; i < gameOptions.fieldSize; i++) {
       for (let j = 0; j < gameOptions.fieldSize; j++) {
@@ -288,12 +319,10 @@ class playGame extends Phaser.Scene {
       }
     }
 
-    // Redraw the field with animations
     this.animateReshuffle();
   }
 
   animateReshuffle() {
-    // Hide gems with fade-out effect
     for (let i = 0; i < gameOptions.fieldSize; i++) {
       for (let j = 0; j < gameOptions.fieldSize; j++) {
         let gem = this.gameArray[i][j];
@@ -303,7 +332,6 @@ class playGame extends Phaser.Scene {
           duration: 500,
           onComplete: () => {
             if (i === gameOptions.fieldSize - 1 && j === gameOptions.fieldSize - 1) {
-              // Show reshuffling text after fade-out is complete
               this.showReshufflingText();
             }
           }
@@ -315,7 +343,8 @@ class playGame extends Phaser.Scene {
   showReshufflingText() {
     let reshufflingText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, 'Reshuffling...', {
       fontSize: '24px',
-      fill: '#ffffff'
+      fill: '#ffffff',
+      fontFamily: "Arial"
     }).setOrigin(0.5);
 
     this.time.delayedCall(1000, () => {
@@ -325,7 +354,6 @@ class playGame extends Phaser.Scene {
   }
 
   redrawFieldWithFadeIn() {
-    // Reposition gems and fade them in
     for (let i = 0; i < gameOptions.fieldSize; i++) {
       for (let j = 0; j < gameOptions.fieldSize; j++) {
         let gem = this.gameArray[i][j];
@@ -424,7 +452,6 @@ class playGame extends Phaser.Scene {
         let fromGem = this.gemAt(highestPriorityMatch.from.row, highestPriorityMatch.from.col);
         let toGem = this.gemAt(highestPriorityMatch.to.row, highestPriorityMatch.to.col);
 
-        // Shake and blink animations for both gems
         this.shakeGem(fromGem.gemSprite);
         this.blinkGem(fromGem.gemSprite);
         this.shakeGem(toGem.gemSprite);
@@ -435,17 +462,15 @@ class playGame extends Phaser.Scene {
     } else {
       this.clearAnimations();
     }
-
-    // this.resetNoSwapTimer();
   }
 
   shakeGem(gemSprite) {
     this.tweens.add({
       targets: gemSprite,
-      x: gemSprite.x + 5, // Adjust as needed
+      x: gemSprite.x + 5,
       duration: 220,
       yoyo: true,
-      repeat: -1, // Adjust repeat count as needed
+      repeat: -1,
       ease: 'Power1',
     });
   }
@@ -478,6 +503,7 @@ class playGame extends Phaser.Scene {
 
   startSwipe(pointer) {
     if (this.dragging && this.selectedGem != null) {
+      this.swipeMusic.play();
       let deltaX = pointer.downX - pointer.x;
       let deltaY = pointer.downY - pointer.y;
       let deltaRow = 0;
@@ -593,7 +619,7 @@ class playGame extends Phaser.Scene {
     this.markMatches(HORIZONTAL);
     this.markMatches(VERTICAL);
     this.destroyGems();
-
+    this.blingMusic.play();
   }
   markMatches(direction) {
     for (let i = 0; i < gameOptions.fieldSize; i++) {
@@ -662,7 +688,7 @@ class playGame extends Phaser.Scene {
   }
   updatePointText() {
     const scoreFill = document.getElementById('scoreFill');
-    const maxPoints = 1000;
+    const maxPoints = total;
     const fillPercentage = (point / maxPoints) * 100;
     scoreFill.style.width = fillPercentage + '%';
 
@@ -837,14 +863,17 @@ class playGame extends Phaser.Scene {
     let points = point;
     let date = Date.now();
     let reward = "basic-reward";
-    /*if (this.points >= this.goals) {
+    if (points >= (total - total / 4)) {
       reward = "win-reward";
-    } else if (this.points >= this.goals / 2) {
+    } else if (points >= total / 2) {
       reward = "win-reward2";
+    } else if (points >= total / 4) {
+      reward = "basic-reward3";
     } else {
-      reward = "basic-reward";
+      status = "Lose";
+      reward = null;
     }
-*/
+
     fetch('http://localhost:3001/game/game-result', {
       method: 'POST',
       headers: {

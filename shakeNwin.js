@@ -6,9 +6,6 @@ import '/node_modules/shake/shake.js';
 const bgImg = "/assets/bg.png";
 const basicReward = "/assets/basket.png";
 const rewards = {
-    "reward2": "/assets/apple.png",
-    "reward3": "/assets/orange.png",
-    "reward4": "/assets/mango.png"
 }
 
 let shakeCount = 0;
@@ -16,6 +13,31 @@ let time = 10;
 let timerSeconds = time;
 let timerInterval;
 
+let backgroundUrl;
+let shakeItemUrl;
+let shakeWinEffectUrl;
+async function fetchImages() {
+    try {
+        const response = await fetch('http://localhost:3001/img/shake-n-win');
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        const imageConfig = await response.json();
+        for (const key in imageConfig) {
+            if (key.startsWith("Reward")) {
+                rewards[key] = imageConfig[key];
+            } 
+        }
+        backgroundUrl = imageConfig.background;
+        shakeItemUrl = imageConfig.shakeItem;
+        shakeWinEffectUrl = imageConfig.shakeWinEffect;
+
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+    }
+}
+
+console
 function sound(src) {
     this.sound = document.createElement("audio");
     this.sound.src = src;
@@ -46,12 +68,13 @@ function sound(src) {
 let mySound = new sound("/assets/coin.mp3");
 let bgm = new sound("/assets/bgMusic.mp3");
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    await fetchImages();
     const startDiv = document.createElement("div");
     startDiv.id = "startDiv";
     startDiv.style.width = "100%";
     startDiv.style.height = "100%";
-    startDiv.style.backgroundColor = "rgba(225, 225, 225, 0.5)";
+    startDiv.style.backgroundColor = "rgba(52, 54, 61, 0.7)";
     startDiv.style.display = "flex";
     startDiv.style.flexDirection = "column";
     startDiv.style.justifyContent = "center";
@@ -89,11 +112,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const main = document.querySelector('main');
     const shakeRequestDiv = document.createElement('div');
     shakeRequestDiv.id = 'shakeRequest';
-    shakeRequestDiv.style.backgroundImage = "url(" + bgImg + ")";
+    shakeRequestDiv.style.backgroundImage = `url('${backgroundUrl}')`;
 
     const giftBox = document.createElement('div');
     giftBox.id = 'giftBox';
-    giftBox.style.backgroundImage = "url('/assets/giftBox.png')";
+    giftBox.style.backgroundImage = `url('${shakeItemUrl}')`;
     const shakePhone = document.createElement('img');
     shakePhone.id = 'shakePhone';
     shakePhone.src = "/assets/phone.png";
@@ -102,7 +125,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const timer = document.createElement('h2');
     timer.id = 'timer';
     timer.innerHTML = 'Time left: 10s';
-
+    timer.style.textShadow = `
+    -1px -1px 0 white,  
+    1px -1px 0 white,
+    -1px 1px 0 white,
+    1px 1px 0 white
+  `;
     shakeRequestDiv.appendChild(timerDiv);
     timerDiv.appendChild(timer);
     shakeRequestDiv.appendChild(giftBox);
@@ -180,13 +208,13 @@ function updateTimer() {
             giftBox.style.backgroundImage = 'none';
             const explosion = document.createElement('div');
             explosion.id = 'explosion';
-            explosion.style.backgroundImage = "url('/assets/explosion-effect.png')";
+            explosion.style.backgroundImage = `url('${shakeWinEffectUrl}')`;
             const rewardDiv = document.createElement('div');
             rewardDiv.id = 'rewardImg';
             giftBox.appendChild(explosion);
         
             if (shakeCount < 5) {
-                rewardDiv.style.backgroundImage = "url('" + basicReward + "')";
+                rewardDiv.style.backgroundImage = `url('${rewards["reward1"]}')`;
             } else {
                 reward = getRandomReward();
                 rewardDiv.style.backgroundImage = `url('${rewards[reward]}')`;
@@ -213,9 +241,10 @@ function updateTimer() {
     }
 }
 function getRandomReward() {
-    return Object.keys(rewards)[Math.floor(Math.random() * Object.keys(rewards).length)];
+    const rewardKeys = Object.keys(rewards).slice(1);
+    const randomKey = rewardKeys[Math.floor(Math.random() * rewardKeys.length)];
+    return randomKey;
 }
-
 
 function shakeEventDidOccur() {
     shakeCount++;

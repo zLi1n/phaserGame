@@ -7,72 +7,87 @@ const sizes = {
     height: window.innerHeight
 };
 
-
-const bgImg = "/assets/bg.png";
 const rewards = {
-    //"reward1": "/assets/basket.png",
-    "APPLE": "/assets/apple.png",
-    //"reward2": "http://localhost:3000/merchant/m_anakmu/applogo.png",
-    "ORANGE": "/assets/orange.png",
-    "BERRY": "/assets/basket.png",
-    "MANGO": "/assets/mango.png",
-    "MANGO #": "/assets/mango.png",
-    "reward4": "/assets/basket.png"
 }
 
 const rewardColors = {
-    "APPLE": [0xff0000, 0x8a2be2],
-    "ORANGE": 0xffa500, 
-    "BERRY": 0x8a2be2, 
-    "MANGO": 0xffd700, 
-    "MANGO #": 0xffd700, 
-    "reward4": 0x0000ff
+    "Reward: apple": [0xff0000, 0x8a2be2],
+    "Reward: orange": 0xffa500,
+    "Reward: mango": 0x8a2be2,
+    "Reward: gem": 0xffd700,
+    "Reward: basket": 0xffd700
 };
-
-const rewardKeys = Object.keys(rewards);
-const numberOfSlices = rewardKeys.length;
-const sliceDegree = 360 / numberOfSlices;
-
-let gameOptions = {
-    slices: rewardKeys.map((reward, index) => {
-        const defaultColor = Phaser.Display.Color.HSVColorWheel()[index * (360 / numberOfSlices)].color;
-        let startColor, endColor;
-
-        if (Array.isArray(rewardColors[reward])) {
-            [startColor, endColor] = rewardColors[reward];
-        } else {
-            startColor = rewardColors[reward] || defaultColor;
-            endColor = startColor; 
+let backgroundUrl;
+let pinUrl;
+let starburstUrl;
+let wheelOutlineUrl;
+let gameOptions;
+async function fetchImages() {
+    try {
+        const response = await fetch('http://localhost:3001/img/spin-n-win');
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
         }
+        const imageConfig = await response.json();
+        for (const key in imageConfig) {
+            if (key.startsWith("Reward")) {
+                rewards[key] = imageConfig[key];
 
-        return {
-            degrees: sliceDegree,
-            startColor: startColor,
-            endColor: endColor,
-            rings: 100,
-            text: reward,
-            iconFrame: index,
-            enabled: true
-        };
-    }),
-    rotationTimeRange: {
-        min: 3000,
-        max: 4500
-    },
-    wheelRounds: {
-        min: 2,
-        max: 11
-    },
-    backSpin: {
-        min: 1,
-        max: 4
-    },
-    wheelRadius: 160,
+            }
+        }
+        backgroundUrl = imageConfig.background;
+        pinUrl = imageConfig.pin;
+        starburstUrl = imageConfig.starburst;
+        wheelOutlineUrl = imageConfig.wheelOutline;
+        const rewardKeys = Object.keys(rewards);
+        const numberOfSlices = rewardKeys.length;
+        const sliceDegree = 360 / numberOfSlices;
 
-    strokeColor: 0xffffff,
-    strokeWidth: 5
+        gameOptions = {
+            slices: rewardKeys.map((reward, index) => {
+                const defaultColor = Phaser.Display.Color.HSVColorWheel()[index * (360 / numberOfSlices)].color;
+                let startColor, endColor;
+
+                if (Array.isArray(rewardColors[reward])) {
+                    [startColor, endColor] = rewardColors[reward];
+                } else {
+                    startColor = rewardColors[reward] || defaultColor;
+                    endColor = startColor;
+                }
+
+                return {
+                    degrees: sliceDegree,
+                    startColor: startColor,
+                    endColor: endColor,
+                    rings: 100,
+                    text: reward,
+                    iconFrame: index,
+                    enabled: true
+                };
+            }),
+            rotationTimeRange: {
+                min: 3000,
+                max: 4500
+            },
+            wheelRounds: {
+                min: 2,
+                max: 11
+            },
+            backSpin: {
+                min: 1,
+                max: 4
+            },
+            wheelRadius: 160,
+
+            strokeColor: 0xffffff,
+            strokeWidth: 5
+        }
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+    }
 }
-gameOptions.slices[2].enabled = false;
+
+//gameOptions.slices[2].enabled = false;
 class GameScene extends Phaser.Scene {
     constructor() {
         super("scene-game");
@@ -86,10 +101,10 @@ class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image("bg", bgImg);
-        this.load.image("pin", "/assets/pin.png");
-        this.load.image("starburst", "/assets/yellow-starburst.png");
-        this.load.image("wheelOutline", "/assets/wheel.png");
+        this.load.image("bg", backgroundUrl);
+        this.load.image("pin", pinUrl);
+        this.load.image("starburst", starburstUrl);
+        this.load.image("wheelOutline", wheelOutlineUrl);
         for (const key in rewards) {
             if (rewards.hasOwnProperty(key)) {
                 this.load.image(key, rewards[key]);
@@ -103,7 +118,7 @@ class GameScene extends Phaser.Scene {
         const { width, height } = this.sys.game.scale.gameSize;
         gameOptions.wheelRadius = Math.min(width, height) / 3;
         const iconSize = Math.min(width, height) / 10;
-        
+
         this.bg = this.add.image(0, 0, 'bg').setOrigin(0.5, 0.5);
         this.resizeBackground();
         this.bgMusic = this.sound.add("bgMusic", {
@@ -195,23 +210,33 @@ class GameScene extends Phaser.Scene {
         this.wheelContainer.add(iconArray);
         const wheelDiameter = (gameOptions.wheelRadius + gameOptions.strokeWidth) * 2.2;
 
-this.pin = this.add.sprite(game.config.width / 2, game.config.height / 2, "pin");
-this.pin.setScale(Math.min(this.sys.game.scale.gameSize.width, this.sys.game.scale.gameSize.height) / (5 * 200));
+        this.pin = this.add.sprite(game.config.width / 2, game.config.height / 2, "pin");
+        this.pin.setScale(Math.min(this.sys.game.scale.gameSize.width, this.sys.game.scale.gameSize.height) / (5 * 200));
 
-this.wheelOutline = this.add.sprite(game.config.width / 2, game.config.height / 2, "wheelOutline");
-this.wheelOutline.setDisplaySize(wheelDiameter, wheelDiameter);
-this.wheelOutline.setPosition(game.config.width / 2, game.config.height / 2);
+        this.wheelOutline = this.add.sprite(game.config.width / 2, game.config.height / 2, "wheelOutline");
+        this.wheelOutline.setDisplaySize(wheelDiameter, wheelDiameter);
+        this.wheelOutline.setPosition(game.config.width / 2, game.config.height / 2);
 
-        const fontSize = Math.min(this.sys.game.scale.gameSize.width, this.sys.game.scale.gameSize.height) * 0.07; 
+        const fontSize = Math.min(this.sys.game.scale.gameSize.width, this.sys.game.scale.gameSize.height) * 0.07;
 
         this.prizeText = this.add.text(
             this.sys.game.scale.gameSize.width / 2,
             gameOptions.wheelRadius + 100,
             "Tap Anywhere to Spin the Wheel",
             {
-                font: `bold ${fontSize}px Arial`, 
+                font: `bold ${fontSize}px Arial`,
                 align: "center",
-                color: "white",
+                color: "black",  
+                stroke: "white",  
+                strokeThickness: 8,  
+                shadow: {
+                    offsetX: 0,
+                    offsetY: 0,
+                    color: '#ffffff',  
+                    blur: 10, 
+                    stroke: true,
+                    fill: true
+                },
                 lineSpacing: 10,
                 wordWrap: {
                     width: this.sys.game.scale.gameSize.width - this.sys.game.scale.gameSize.width / 10,
@@ -267,7 +292,7 @@ this.wheelOutline.setPosition(game.config.width / 2, game.config.height / 2);
                 callbackScope: this,
                 onUpdate: (tween) => {
                     const progress = tween.progress;
-                    const newVolume = 1 - progress; 
+                    const newVolume = 1 - progress;
                     this.spinSound.setVolume(newVolume);
                 },
                 onComplete: function (tween) {
@@ -345,27 +370,28 @@ this.wheelOutline.setPosition(game.config.width / 2, game.config.height / 2);
             });
     }
 }
-
-const config = {
-    type: Phaser.AUTO,
-    scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: sizes.width,
-        height: sizes.height,
-    },
-    scene: [GameScene, FireworksScene],
-    parent: 'gameCanvas',
-    callbacks: {
-        postBoot: function (game) {
-            window.addEventListener('resize', () => resize(game));
-            resize(game);
+let game;
+fetchImages().then(() => {
+    const config = {
+        type: Phaser.AUTO,
+        scale: {
+            mode: Phaser.Scale.RESIZE,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+            width: sizes.width,
+            height: sizes.height,
+        },
+        scene: [GameScene, FireworksScene],
+        parent: 'gameCanvas',
+        callbacks: {
+            postBoot: function (game) {
+                window.addEventListener('resize', () => resize(game));
+                resize(game);
+            }
         }
-    }
-};
+    };
 
-const game = new Phaser.Game(config);
-
+    game = new Phaser.Game(config);
+});
 function resize(game) {
     game.scale.resize(sizes.width, sizes.height);
 }

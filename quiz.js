@@ -7,15 +7,6 @@ const sizes = {
     height: window.innerHeight
 };
 
-const bgImg = "/assets/toy-bg.jpg";
-const rewards = {
-    "reward1": "/assets/basket.png",
-    "reward2": "/assets/apple.png",
-    //"reward2": "http://localhost:3000/merchant/m_anakmu/applogo.png",
-    "reward3": "/assets/orange.png",
-    "reward4": "/assets/mango.png"
-}
-
 const questions = [
     {
         question: "Which company does this logo belong to?",
@@ -46,13 +37,37 @@ const questions = [
 const questionNum = questions.length;
 
 const btnStyle = {
-    "btn1": "/assets/btn-blue.png",
-    "btn2": "/assets/btn-green.png",
-    "btn3": "/assets/btn-orange.png"
 }
 const progressBarHeight = 20;
 
 const point = 1;
+
+let backgroundUrl;
+let bonusBackgroundUrl;
+let correctUrl;
+let wrongUrl;
+async function fetchImages() {
+    try {
+        const response = await fetch('http://localhost:3001/img/quiz');
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        const imageConfig = await response.json();
+        for (const key in imageConfig) {
+            if (key.startsWith("btn")) {
+                btnStyle[key] = imageConfig[key];
+            }
+        }
+        backgroundUrl = imageConfig.background;
+        bonusBackgroundUrl = imageConfig.bonusBackground;
+        correctUrl = imageConfig.correct;
+        wrongUrl = imageConfig.wrong;
+
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+    }
+}
+
 class GameScene extends Phaser.Scene {
     constructor() {
         super("scene-game");
@@ -70,15 +85,8 @@ class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image("bg", bgImg);
-        this.load.image("scoreBg", "assets/train-shadow.png");
-        this.load.image("bonus2", "assets/robot1.png");
-        this.load.image("bonus1", "assets/robot2.png");
-        for (const key in rewards) {
-            if (rewards.hasOwnProperty(key)) {
-                this.load.image(key, rewards[key]);
-            }
-        }
+        this.load.image("bg", backgroundUrl);
+        this.load.image("bonus", bonusBackgroundUrl);
         for (const key in btnStyle) {
             if (btnStyle.hasOwnProperty(key)) {
                 this.load.image(key, btnStyle[key]);
@@ -89,8 +97,9 @@ class GameScene extends Phaser.Scene {
                 this.load.image(question.question + '_image', question.image);
             }
         });
-        this.load.image('correct', 'assets/correct-ans.png');
-        this.load.image('wrong', 'assets/wrong-ans.png');
+        this.load.image('correct', correctUrl);
+        this.load.image('wrong', wrongUrl);
+        this.load.audio("bgMusic", "/assets/bgMusic.mp3");
         this.load.audio("correctSound", "/assets/Correct-Answer-sound-effect.mp3");
         this.load.audio("wrongSound", "/assets/Incorrect-Answer-sound-effect.mp3");
     }
@@ -100,6 +109,10 @@ class GameScene extends Phaser.Scene {
         this.resizeBackground();
         this.correctSound = this.sound.add("correctSound");
         this.wrongSound = this.sound.add("wrongSound");
+        this.bgMusic = this.sound.add("bgMusic", {
+            loop: true
+        });
+        this.bgMusic.play();
         this.shuffledQuestions = this.shuffle(questions);
         this.currentQuestionIndex = 0;
 
@@ -107,6 +120,8 @@ class GameScene extends Phaser.Scene {
             font: "bold 24px Arial",
             fill: '#000000',
             align: 'center',
+            stroke: "white",
+            strokeThickness: 3,
             lineSpacing: 2,
             wordWrap: {
                 width: (sizes.width - sizes.width / 4),
@@ -122,36 +137,48 @@ class GameScene extends Phaser.Scene {
         this.progressBarFill.fillStyle(0x00ff00, 1);
         this.progressBarFill.fillRect(0, 0, sizes.width, progressBarHeight);
 
-        const bonusImg = this.add.image(sizes.width - sizes.width / 3, progressBarHeight, "bonus1").setOrigin(0.5, 0);
+        const bonusImg = this.add.image(sizes.width - sizes.width / 3, progressBarHeight, "bonus").setOrigin(0.5, 0);
         const bonusScaleX = sizes.width / 8 / bonusImg.width;
         const bonusScaleY = sizes.height / 12 / bonusImg.height;
         const bonusScale = Math.min(bonusScaleX, bonusScaleY);
         bonusImg.setScale(bonusScale);
 
-        const bonusText = this.add.text(bonusImg.x, bonusImg.y + bonusImg.displayHeight / 2, "x2", {
+        const bonusText = this.add.text(bonusImg.x, bonusImg.y + bonusImg.displayHeight / 2, "x3", {
             fontSize: '18px',
             color: '#000000',
             fontFamily: 'Arial',
+            stroke: "white",
+            strokeThickness: 3
         }).setOrigin(0.5, 0.5);
 
-        const bonus2Img = this.add.image(sizes.width / 3, progressBarHeight, "bonus2").setOrigin(0.5, 0);
+        const bonus2Img = this.add.image(sizes.width / 3, progressBarHeight, "bonus").setOrigin(0.5, 0);
         const bonus2ScaleX = sizes.width / 8 / bonus2Img.width;
         const bonus2ScaleY = sizes.height / 12 / bonus2Img.height;
         const bonus2Scale = Math.min(bonus2ScaleX, bonus2ScaleY);
         bonus2Img.setScale(bonus2Scale);
 
 
-        const bonus2Text = this.add.text(bonus2Img.x, bonus2Img.y + bonus2Img.displayHeight / 2, "x3", {
+        const bonus2Text = this.add.text(bonus2Img.x, bonus2Img.y + bonus2Img.displayHeight / 2, "x2", {
             fontSize: '18px',
             color: '#000000',
             fontFamily: 'Arial',
+            stroke: "white",
+            strokeThickness: 3
         }).setOrigin(0.5, 0.5);
-
-
 
         this.textScore = this.add.text(sizes.width - 10, 50, "Score: 0", {
             font: "20px Arial",
             fill: "#000000",
+            stroke: "white",
+            strokeThickness: 5,
+            shadow: {
+                offsetX: 0,
+                offsetY: 0,
+                color: '#ffffff',
+                blur: 10,
+                stroke: true,
+                fill: true
+            },
         }).setOrigin(1, 0.5);
 
 
@@ -281,8 +308,10 @@ class GameScene extends Phaser.Scene {
 
             let answerText = this.add.text(sizes.width / 2, y + height / 2, shuffledAnswers[i], {
                 font: "bold 20px Arial",
-                fill: '#fff',
+                fill: 'black',
                 align: 'center',
+                stroke: "white",
+                strokeThickness: 5,
                 wordWrap: {
                     width: (sizes.width - sizes.width / 3.5),
                     useAdvancedWrap: true
@@ -420,7 +449,8 @@ class GameScene extends Phaser.Scene {
 
 
 }
-
+let game;
+fetchImages().then(() => {
 const config = {
     type: Phaser.AUTO,
     scale: {
@@ -439,8 +469,8 @@ const config = {
     }
 };
 
-const game = new Phaser.Game(config);
-
+game = new Phaser.Game(config);
+});
 function resize(game) {
     game.scale.resize(sizes.width, sizes.height);
 }

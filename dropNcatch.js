@@ -20,7 +20,7 @@ const items = {
 let backgroundUrl;
 let debuffUrl;
 let basketUrl;
-async function fetchDropNCatchImages() {
+async function fetchImages() {
   try {
     const response = await fetch('http://localhost:3001/img/drop-n-catch');
     if (!response.ok) {
@@ -84,7 +84,6 @@ class GameScene extends Phaser.Scene {
       loop: true
     });
     this.bgMusic.play();
-    this.bgMusic.stop();
     this.remainingItems = Object.keys(items);
 
     this.bg = this.add.image(0, 0, 'bg').setOrigin(0.5, 0.5);
@@ -293,7 +292,7 @@ class GameScene extends Phaser.Scene {
 }
 
 let game;
-fetchDropNCatchImages().then(() => {
+fetchImages().then(() => {
   const config = {
     type: Phaser.WEBGL,
     width: sizes.width,
